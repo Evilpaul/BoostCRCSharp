@@ -8,38 +8,44 @@ namespace Boost.Detail
 {
 	/// <summary>
 	/// вспомогательный класс для масок
+	/// обобщённая форма
 	/// </summary>
 	/// <remarks>идея спёрта у boost</remarks>
-	struct MaskUint
+	struct MaskUint<T> where T : new()
 	{
 		/// <summary>
 		/// маска - один установленный бит в старшем разряде регистра текущей разрядности
 		/// </summary>
-		public readonly ulong HighBitMask;
+		public readonly T HighBitMask;
 
 		/// <summary>
 		/// маска значащих бит в регистре текущей разрядности
 		/// </summary>
-		public readonly ulong SigBits;
+		public readonly T SigBits;
 
 		public const byte ByteHighBitMask = 1 << (Limits.CHAR_BIT - 1);
 
 		public MaskUint(int Bits)
 		{
-			HighBitMask = 1UL << (Bits - 1);
+			dynamic val1 = new T();
 
-			SigBits = ~(0UL);
+			val1 += 1;
 
-			if (Bits == 64)
-			{
-				// большой привет микрософту
-				SigBits <<= 63;
-				SigBits <<= 1;
-			}
-			else
-				SigBits <<= Bits;
+			val1 <<= (Bits - 1);
 
-			SigBits = ~SigBits;
+			HighBitMask = (T)val1;
+
+			dynamic val2 = new T();
+
+			val2 += 1;
+
+			// специальный прикол для защиты от сдвига разрядность регистра/сдвиг - 32/32 64/64
+			val2 <<= (Bits / 2);
+			val2 <<= (Bits - Bits / 2);
+
+			val2--;
+
+			SigBits = (T)val2;
 		}
 	}
 }

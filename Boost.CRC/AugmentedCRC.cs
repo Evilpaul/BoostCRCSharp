@@ -6,7 +6,7 @@ using Boost.Detail;
 
 namespace Boost.CRC
 {
-    public class AugmentedCRC
+    public class AugmentedCRC<T> where T: new()
     {
 		/// <summary>
 		/// Степень алгоритма, выраженная в битах.
@@ -23,30 +23,30 @@ namespace Boost.CRC
 		/// что он всегда представляет собой необращенный полином, младшая часть этого параметра во время вычислений всегда является
 		/// наименее значащими битами делителя вне зависимости от того, какой – "зеркальный" или прямой алгоритм моделируется.
 		/// </remarks>
-		public readonly ulong TruncPoly;
+		public readonly T TruncPoly;
 
 		/// <summary>
 		/// рабочие маски
 		/// </summary>
-		private readonly MaskUint masking_type;
+		private readonly MaskUint<T> masking_type;
 
-		private readonly CRCtable crc_table_type;
+		private readonly CRCtable<T> crc_table_type;
 
-		public AugmentedCRC(int Bits, ulong TruncPoly)
+		public AugmentedCRC(int Bits, T TruncPoly)
 		{
 			this.Bits = Bits;
 			this.TruncPoly = TruncPoly;
 
-			masking_type = new MaskUint(Bits);
+			masking_type = new MaskUint<T>(Bits);
 
-			crc_table_type = new CRCtable(Bits, TruncPoly, false);
+			crc_table_type = new CRCtable<T>(Bits, TruncPoly, false);
 
 			crc_table_type.InitTable();
 		}
 
-		public ulong Calculate(byte[] buffer, int offset, int size, ulong initial_remainder = 0)
+		public T Calculate(byte[] buffer, int offset, int size, T initial_remainder)
 		{
-			ulong rem = initial_remainder;
+			dynamic rem = initial_remainder;
 
 			for (int x = 0; x < size; x++)
 			{
@@ -61,7 +61,7 @@ namespace Boost.CRC
 				rem ^= crc_table_type.Table[byte_index];
 			}
 
-			return rem & masking_type.SigBits;
+			return (T)(rem & masking_type.SigBits);
 		}
     }
 }

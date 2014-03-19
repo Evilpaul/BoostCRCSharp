@@ -11,10 +11,8 @@ namespace Boost.CRC
 	/// </summary>
 	/// /// <remarks>
 	/// Основана на модели CRC алгоритма Rocksoft.
-	/// Ввиду отсутствия на C#-целочисленных параметров шаблонов пришлось отойти от реализации алгорима в библиотеке boost.
-	/// По заверениям вики CRC-128/256 вытеснили алгоритмы хэширования. Потому 64-битного регистра для вычислений нам должно хватить.
 	/// </remarks>
-	public class CRCoptimal
+	public class CRCoptimal<T> where T: new()
 	{
 		/// <summary>
 		/// Степень алгоритма, выраженная в битах.
@@ -31,13 +29,13 @@ namespace Boost.CRC
 		/// что он всегда представляет собой необращенный полином, младшая часть этого параметра во время вычислений всегда является
 		/// наименее значащими битами делителя вне зависимости от того, какой – "зеркальный" или прямой алгоритм моделируется.
 		/// </remarks>
-		public readonly ulong TruncPoly;
+		public readonly T TruncPoly;
 
 		/// <summary>
 		/// Этот параметр определяет исходное содержимое регистра на момент запуска вычислений.
 		/// </summary>
 		/// <remarks>Данный параметр указывается шестнадцатеричным числом.</remarks>
-		public readonly ulong InitialRemainder;
+		public readonly T InitialRemainder;
 
 		/// <summary>
 		/// W битное значение, обозначаемое шестнадцатеричным числом.
@@ -45,7 +43,7 @@ namespace Boost.CRC
 		/// <remarks>
 		/// Оно комбинируется с конечным содержимым регистра (после стадии RefOut), прежде чем будет получено окончательное значение контрольной суммы.
 		/// </remarks>
-		public readonly ulong FinalXorValue;
+		public readonly T FinalXorValue;
 
 		/// <summary>
 		/// Логический параметр.
@@ -68,23 +66,23 @@ namespace Boost.CRC
 		/// <summary>
 		/// текущее значение остатка
 		/// </summary>
-		private ulong Remainder;
+		private T Remainder;
 
 		/// <summary>
 		/// рабочие маски
 		/// </summary>
-		private readonly MaskUint masking_type;
+		private readonly MaskUint<T> masking_type;
 
-		private readonly CRChelper helper_type;
+		private readonly CRChelper<T> helper_type;
 
-		private readonly CRChelper reflect_out_type;
+		private readonly CRChelper<T> reflect_out_type;
 
-		private readonly CRCtable crc_table_type;
+		private readonly CRCtable<T> crc_table_type;
 
 		/// <summary>
 		/// Конструктор ЦРЦ-вычислителя
 		/// </summary>
-		public CRCoptimal(int Bits, ulong TruncPoly,  ulong InitialRemainder=0, ulong FinalXorValue=0, bool ReflectInput=false, bool ReflectRemainder=false)
+		public CRCoptimal(int Bits, T TruncPoly,  T InitialRemainder, T FinalXorValue, bool ReflectInput=false, bool ReflectRemainder=false)
 		{
 			this.Bits=Bits;
 			this.ReflectInput=ReflectInput;
@@ -93,14 +91,14 @@ namespace Boost.CRC
 			this.TruncPoly=TruncPoly;
 			this.InitialRemainder=InitialRemainder;
 
-			masking_type = new MaskUint(Bits);
-			helper_type = new CRChelper(Bits, ReflectInput);
+			masking_type = new MaskUint<T>(Bits);
+			helper_type = new CRChelper<T>(Bits, ReflectInput);
 
-			reflect_out_type = new CRChelper(Bits, (ReflectRemainder != ReflectInput));
+			reflect_out_type = new CRChelper<T>(Bits, (ReflectRemainder != ReflectInput));
 
 			Remainder =helper_type.reflect(InitialRemainder);
 
-			crc_table_type = new CRCtable(Bits, TruncPoly, ReflectInput);
+			crc_table_type = new CRCtable<T>(Bits, TruncPoly, ReflectInput);
 
 			crc_table_type.InitTable();
 		}
@@ -113,8 +111,10 @@ namespace Boost.CRC
 			// of the new bits.
 
 			byte byte_index = helper_type.index(Remainder, p);
-			Remainder = helper_type.shift(Remainder);
-			Remainder ^= crc_table_type.Table[byte_index];
+
+			dynamic dynRemainder = helper_type.shift(Remainder);
+			dynRemainder ^= crc_table_type.Table[byte_index];
+			Remainder = (T)dynRemainder;
 		}
 
 		public void ProcessBytes(params byte[] mas)
@@ -148,7 +148,7 @@ namespace Boost.CRC
 		/// сброс вычислителя в известное состояние
 		/// </summary>
 		/// <param name="NewRemainder"></param>
-		public void Reset(ulong NewRemainder)
+		public void Reset(T NewRemainder)
 		{
 			Remainder = helper_type.reflect(NewRemainder);
 		}
@@ -156,23 +156,29 @@ namespace Boost.CRC
 		/// <summary>
 		/// текущий остаток
 		/// </summary>
-		public ulong InterimRemainder
+		public T InterimRemainder
 		{
 			get
 			{
 				// Interim remainder should be _un_-reflected, so we have to undo it.
-				return helper_type.reflect(Remainder) & masking_type.SigBits;
+				dynamic ret = helper_type.reflect(Remainder);
+
+				return ret & masking_type.SigBits;
 			}
 		}
 
 		/// <summary>
 		/// выдаёт контрольную сумму
 		/// </summary>
-		public ulong CheckSum
+		public T CheckSum
 		{
 			get
 			{
-				return (reflect_out_type.reflect(Remainder) ^ FinalXorValue) & masking_type.SigBits;
+				dynamic ret=reflect_out_type.reflect(Remainder);
+
+				ret^= FinalXorValue;
+
+				return (T)(ret & masking_type.SigBits);
 			}
 		}
 	}

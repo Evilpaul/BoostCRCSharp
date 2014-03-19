@@ -8,7 +8,7 @@ namespace Boost.Detail
 	/// <summary>
 	///  вспомогательный класс, для обращения чисел
 	/// </summary>
-	class Reflector
+	class Reflector<T> where T : new()
 	{
 		/// <summary>
 		/// битность для конкретной реализации рефлектора
@@ -20,16 +20,32 @@ namespace Boost.Detail
 		/// </summary>
 		/// <param name="x"></param>
 		/// <returns></returns>
-		public static ulong reflect(ulong x, int Bits)
+		public static T reflect(T x, int Bits)
 		{
-			ulong reflection = 0;
-			const ulong one = 1;
+			dynamic reflection = new T();
 
-			for (int i = 0; i < Bits; ++i, x >>= 1)
-				if ((x & one) != 0)
-					reflection |= (ulong)(one << (Bits - 1 - i));
+			dynamic one = new T();	// 1
+			one++;
 
-			return reflection;
+			dynamic SourceX = x;
+
+			for (int i = 0; i < Bits; ++i, SourceX >>= 1)
+			{
+				dynamic TestedBit = SourceX & one;
+
+				if (TestedBit == one)
+				{
+					int index = Bits - 1 - i;
+
+					dynamic TmpVal = one;
+
+					TmpVal <<= index;
+
+					reflection |= TmpVal;
+				}
+			}
+
+			return (T)reflection;
 		}
 
 		public Reflector(int Bits)
@@ -37,7 +53,7 @@ namespace Boost.Detail
 			this.Bits = Bits;
 		}
 
-		public ulong reflect(ulong x)
+		public T reflect(T x)
 		{
 			return reflect(x, Bits);
 		}

@@ -6,7 +6,10 @@ using Boost.CRC;
 
 namespace Boost.Detail
 {
-	class CRChelper
+	/// <summary>
+	/// вспомогательный класс
+	/// </summary>
+	class CRChelper<T> where T : new()
 	{
 		public readonly int Bits;
 		public readonly bool DoReflect;
@@ -17,39 +20,45 @@ namespace Boost.Detail
 			this.DoReflect = DoReflect;
 		}
 
-		public ulong reflect(ulong x)
+		public T reflect(T x)
 		{
 			if (DoReflect)
-				return Reflector.reflect(x, Bits);
+				return Reflector<T>.reflect(x, Bits);
 			else
 				return x;
 		}
 
 		// Compare a byte to the remainder's highest byte
-		public byte index(ulong rem, byte x)
+		public byte index(T rem, byte x)
 		{
+			dynamic tval = rem;
+
 			if (DoReflect)
-				return (byte)(x ^ rem);
+				return (byte)(tval ^ x);
 			else
 			{
-				ulong tval;
-
 				if (Bits > Limits.CHAR_BIT)
-					tval = rem >> (Bits - Limits.CHAR_BIT);
+					tval = tval >> (Bits - Limits.CHAR_BIT);
 				else
-					tval = rem << (Limits.CHAR_BIT - Bits);
+					tval = tval << (Limits.CHAR_BIT - Bits);
 
-				return (byte)(x ^ tval);
+				return (byte)(tval ^ x);
 			}
 		}
 
 		// Shift out the remainder's highest byte
-		public ulong shift(ulong rem)
+		public T shift(T rem)
 		{
+			dynamic tmp = rem;
+
 			if (DoReflect)
-				return rem >> Limits.CHAR_BIT;
+			{
+				return (T)(tmp >> Limits.CHAR_BIT);
+			}
 			else
-				return rem << Limits.CHAR_BIT;
+			{
+				return (T)(tmp << Limits.CHAR_BIT);
+			}
 		}
 	}
 }

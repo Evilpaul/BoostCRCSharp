@@ -3,154 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Diagnostics;
+using System.ComponentModel;
+
+
 using Boost.CRC;
+
 
 namespace CRCTest
 {
 	class Program
 	{
-		// Run tests on using CRCs on augmented messages
-		private static void AugmentedTests()
-		{
-			// Create a random block of data, with space for a CRC.
-			byte[] ran_data = new byte[257 * 4];
-			int data_length = ran_data.Length - 4;
-
-			Random random = new Random();
-
-			random.NextBytes(ran_data);
-
-			// When creating a CRC for an augmented message, use
-			// zeros in the appended CRC spot for the first run.
-			ran_data[data_length + 0] = 0;
-			ran_data[data_length + 1] = 0;
-			ran_data[data_length + 2] = 0;
-			ran_data[data_length + 3] = 0;
-
-			AugmentedCRC aug = new AugmentedCRC(32, 0x04C11DB7);
-
-			// Compute the CRC with augmented-CRC computing function
-			ulong ran_crc = aug.Calculate(ran_data, 0, ran_data.Length);
-
-			// With the appended CRC set, running the checksum again should get zero.
-			// NOTE: CRC algorithm assumes numbers are in big-endian format
-
-			ran_data[data_length + 3] = (byte)ran_crc;
-			ran_crc >>= 8;
-			ran_data[data_length + 2] = (byte)ran_crc;
-			ran_crc >>= 8;
-			ran_data[data_length + 1] = (byte)ran_crc;
-			ran_crc >>= 8;
-			ran_data[data_length + 0] = (byte)ran_crc;
-
-			ulong ran_crc_check = aug.Calculate(ran_data, 0, ran_data.Length);
-
-			Debug.Assert(0 == ran_crc_check);
-
-			// Compare that result with other CRC computing functions
-			// and classes, which don't accept augmented messages.
-
-			CRCoptimal fast_tester = new CRCoptimal(32, 0x04C11DB7);
-			CRCbasic slow_tester = new CRCbasic(32, 0x04C11DB7);
-
-			fast_tester.ProcessBytes(ran_data, data_length);
-			slow_tester.ProcessBytes(ran_data, data_length);
-			Debug.Assert(fast_tester.CheckSum == slow_tester.CheckSum);
-
-			ran_crc = 0;
-			ran_crc |= ran_data[data_length + 0];
-			ran_crc <<= 8;
-			ran_crc |= ran_data[data_length + 1];
-			ran_crc <<= 8;
-			ran_crc |= ran_data[data_length + 2];
-			ran_crc <<= 8;
-			ran_crc |= ran_data[data_length + 3];
-
-			Debug.Assert(fast_tester.CheckSum == ran_crc);
-
-			// Do a single-bit error test
-
-			ran_data[ran_data[0] % ran_data.Length] ^= (byte)(1 << (ran_data[1] % 8));
-
-			ran_crc_check = aug.Calculate(ran_data, 0, ran_data.Length);
-
-			Debug.Assert(ran_crc_check != 0);
-
-			// Run a version of these tests with a nonzero initial remainder.
-
-			int ind = ran_data[2] % data_length;
-			ulong init_rem = 0;
-			init_rem |= ran_data[ind + 0];
-			init_rem <<= 8;
-			init_rem |= ran_data[ind + 1];
-			init_rem <<= 8;
-			init_rem |= ran_data[ind + 2];
-			init_rem <<= 8;
-			init_rem |= ran_data[ind + 3];
-
-			// обнулить CRC
-			ran_data[data_length + 0] = 0;
-			ran_data[data_length + 1] = 0;
-			ran_data[data_length + 2] = 0;
-			ran_data[data_length + 3] = 0;
-
-			ran_crc = aug.Calculate(ran_data, 0, ran_data.Length, init_rem);
-			ran_data[data_length + 3] = (byte)ran_crc;
-			ran_crc >>= 8;
-			ran_data[data_length + 2] = (byte)ran_crc;
-			ran_crc >>= 8;
-			ran_data[data_length + 1] = (byte)ran_crc;
-			ran_crc >>= 8;
-			ran_data[data_length + 0] = (byte)ran_crc;
-
-			// Have some fun by processing data in two steps.
-			int mid_index = ran_data.Length / 2;
-
-			ran_crc_check = aug.Calculate(ran_data, 0, mid_index, init_rem);
-			ran_crc_check = aug.Calculate(ran_data, mid_index, ran_data.Length - mid_index, ran_crc_check);
-
-			Debug.Assert(ran_crc_check == 0);
-
-			// This substep translates an augmented-CRC initial
-			// remainder to an unaugmented-CRC initial remainder.
-
-			byte[] zero = new byte[4] { 0, 0, 0, 0 };
-
-			ulong new_init_rem = aug.Calculate(zero, 0, zero.Length, init_rem);
-
-			CRCbasic slow_tester2 = new CRCbasic(32, 0x04C11DB7, new_init_rem);
-
-			slow_tester2.ProcessBytes(ran_data, data_length);
-
-			ran_crc = 0;
-			ran_crc |= ran_data[data_length + 0];
-			ran_crc <<= 8;
-			ran_crc |= ran_data[data_length + 1];
-			ran_crc <<= 8;
-			ran_crc |= ran_data[data_length + 2];
-			ran_crc <<= 8;
-			ran_crc |= ran_data[data_length + 3];
-
-			Debug.Assert(slow_tester2.CheckSum == ran_crc);
-
-			// Redo single-bit error test
-
-			ran_data[ran_data[3] % ran_data.Length] ^= (byte)(1 << (ran_data[4] % 8));
-
-			ran_crc_check = aug.Calculate(ran_data, 0, ran_data.Length, init_rem);
-
-			Debug.Assert(ran_crc_check != 0);
-		}
-
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <remarks>see http://regregex.bbcmicro.net/crc-catalogue.htm</remarks>
-		private static void BasicTests()
-		{
-			byte[] StandartCheckData = new byte[] { 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39 };
-
-			SimpleTestAlgorithm[] alglist = new SimpleTestAlgorithm[]
+		static SimpleTestAlgorithm[] alglist = new SimpleTestAlgorithm[]
 			{
 				new SimpleTestAlgorithm("какой-то CRC-8 алгоритм", 8, 0x31, 0xFF, false, false, 0x00, 0xF7),
 
@@ -883,23 +746,201 @@ namespace CRCTest
 				//new SimpleTestAlgorithm("CRC-82/DARC", 82, 0x0308C0111011401440411, 0x000000000000000000000, true, true, 0x000000000000000000000, 0x09EA83F625023801FD612)
 			};
 
+
+		// Run tests on using CRCs on augmented messages
+		private static void AugmentedTests<T>() where T: new()
+		{
+			TypeConverter tc = TypeDescriptor.GetConverter(typeof(T));
+
+
+			// Create a random block of data, with space for a CRC.
+			byte[] ran_data = new byte[257 * 4];
+			int data_length = ran_data.Length - 4;
+
+			Random random = new Random();
+
+			random.NextBytes(ran_data);
+
+			// When creating a CRC for an augmented message, use
+			// zeros in the appended CRC spot for the first run.
+			ran_data[data_length + 0] = 0;
+			ran_data[data_length + 1] = 0;
+			ran_data[data_length + 2] = 0;
+			ran_data[data_length + 3] = 0;
+
+			AugmentedCRC<T> aug = new AugmentedCRC<T>(32, (T)tc.ConvertFromString("0x04C11DB7"));
+
+			// Compute the CRC with augmented-CRC computing function
+			T Tran_crc = aug.Calculate(ran_data, 0, ran_data.Length, new T() );
+
+			uint ran_crc = uint.Parse(Tran_crc.ToString());
+
+			// With the appended CRC set, running the checksum again should get zero.
+			// NOTE: CRC algorithm assumes numbers are in big-endian format
+
+			ran_data[data_length + 3] = (byte)ran_crc;
+			ran_crc >>= 8;
+			ran_data[data_length + 2] = (byte)ran_crc;
+			ran_crc >>= 8;
+			ran_data[data_length + 1] = (byte)ran_crc;
+			ran_crc >>= 8;
+			ran_data[data_length + 0] = (byte)ran_crc;
+
+			T Tran_crc_check = aug.Calculate(ran_data, 0, ran_data.Length, new T());
+
+			uint ran_crc_check = uint.Parse(Tran_crc_check.ToString());
+
+			Debug.Assert(ran_crc_check==0);
+
+			// Compare that result with other CRC computing functions
+			// and classes, which don't accept augmented messages.
+
+			CRCoptimal<T> fast_tester = new CRCoptimal<T>(32, (T)tc.ConvertFromString("0x04C11DB7"), new T(), new T());
+			CRCbasic<T> slow_tester = new CRCbasic<T>(32, (T)tc.ConvertFromString("0x04C11DB7"), new T(), new T());
+
+			fast_tester.ProcessBytes(ran_data, data_length);
+			slow_tester.ProcessBytes(ran_data, data_length);
+
+			T Tfast_testerCheckSum = fast_tester.CheckSum;
+			T Tslow_testerCheckSum = slow_tester.CheckSum;
+
+			uint fast_testerCheckSum = uint.Parse( Tfast_testerCheckSum.ToString() );
+
+			uint slow_testerCheckSum = uint.Parse(Tslow_testerCheckSum.ToString());
+
+			Debug.Assert(fast_testerCheckSum == slow_testerCheckSum);
+
+			ran_crc = 0;
+			ran_crc |= ran_data[data_length + 0];
+			ran_crc <<= 8;
+			ran_crc |= ran_data[data_length + 1];
+			ran_crc <<= 8;
+			ran_crc |= ran_data[data_length + 2];
+			ran_crc <<= 8;
+			ran_crc |= ran_data[data_length + 3];
+
+			Debug.Assert(fast_testerCheckSum == ran_crc);
+
+			// Do a single-bit error test
+
+			ran_data[ran_data[0] % ran_data.Length] ^= (byte)(1 << (ran_data[1] % 8));
+
+			Tran_crc_check = aug.Calculate(ran_data, 0, ran_data.Length, new T() );
+
+			ran_crc_check = uint.Parse(Tran_crc_check.ToString());
+
+			Debug.Assert(ran_crc_check != 0);
+
+			// Run a version of these tests with a nonzero initial remainder.
+
+			int ind = ran_data[2] % data_length;
+			uint init_rem = 0;
+
+			init_rem |= ran_data[ind + 0];
+			init_rem <<= 8;
+			init_rem |= ran_data[ind + 1];
+			init_rem <<= 8;
+			init_rem |= ran_data[ind + 2];
+			init_rem <<= 8;
+			init_rem |= ran_data[ind + 3];
+
+			// обнулить CRC
+			ran_data[data_length + 0] = 0;
+			ran_data[data_length + 1] = 0;
+			ran_data[data_length + 2] = 0;
+			ran_data[data_length + 3] = 0;
+
+			Tran_crc = aug.Calculate(ran_data, 0, ran_data.Length, 
+				(T)tc.ConvertFromString(init_rem.ToString() )
+				);
+
+			ran_crc = uint.Parse(Tran_crc.ToString());
+
+			ran_data[data_length + 3] = (byte)ran_crc;
+			ran_crc >>= 8;
+			ran_data[data_length + 2] = (byte)ran_crc;
+			ran_crc >>= 8;
+			ran_data[data_length + 1] = (byte)ran_crc;
+			ran_crc >>= 8;
+			ran_data[data_length + 0] = (byte)ran_crc;
+
+			// Have some fun by processing data in two steps.
+			int mid_index = ran_data.Length / 2;
+
+			Tran_crc_check = aug.Calculate(ran_data, 0, mid_index, 
+				(T)tc.ConvertFromString(init_rem.ToString())
+				);
+
+			ran_crc_check = uint.Parse(Tran_crc_check.ToString());
+
+			Tran_crc_check = aug.Calculate(ran_data, mid_index, ran_data.Length - mid_index, 
+				(T)tc.ConvertFromString(ran_crc_check.ToString())
+				);
+
+			ran_crc_check = uint.Parse(Tran_crc_check.ToString());
+
+			Debug.Assert(ran_crc_check == 0);
+
+			// This substep translates an augmented-CRC initial
+			// remainder to an unaugmented-CRC initial remainder.
+
+			byte[] zero = new byte[4] { 0, 0, 0, 0 };
+
+			T Tnew_init_rem = aug.Calculate(zero, 0, zero.Length, 
+				(T)tc.ConvertFromString(init_rem.ToString())
+				);
+
+			uint new_init_rem = uint.Parse(Tnew_init_rem.ToString());
+
+			CRCbasic<T> slow_tester2 = new CRCbasic<T>(32, (T)tc.ConvertFromString("0x04C11DB7"),
+				(T)tc.ConvertFromString(new_init_rem.ToString() ),
+				new T());
+
+			slow_tester2.ProcessBytes(ran_data, data_length);
+
+			ran_crc = 0;
+			ran_crc |= ran_data[data_length + 0];
+			ran_crc <<= 8;
+			ran_crc |= ran_data[data_length + 1];
+			ran_crc <<= 8;
+			ran_crc |= ran_data[data_length + 2];
+			ran_crc <<= 8;
+			ran_crc |= ran_data[data_length + 3];
+
+			T Tslow_tester2CheckSum = slow_tester2.CheckSum;
+
+			uint slow_tester2CheckSum = uint.Parse(Tslow_tester2CheckSum.ToString());
+
+			Debug.Assert(slow_tester2CheckSum == ran_crc);
+
+			// Redo single-bit error test
+
+			ran_data[ran_data[3] % ran_data.Length] ^= (byte)(1 << (ran_data[4] % 8));
+
+			Tran_crc_check = aug.Calculate(ran_data, 0, ran_data.Length,
+				(T)tc.ConvertFromString(init_rem.ToString())
+				);
+
+			ran_crc_check = uint.Parse(Tran_crc_check.ToString());
+
+			Debug.Assert(ran_crc_check != 0);
+		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <remarks>see http://regregex.bbcmicro.net/crc-catalogue.htm</remarks>
+		private static void BasicTests()
+		{
 			foreach (SimpleTestAlgorithm alg in alglist)
-			{
-				CRCbasic crcbasic = new CRCbasic(alg.Width, alg.Poly, alg.Init, alg.XorOut, alg.RefIn, alg.RefOut);
-				CRCoptimal crcopt = new CRCoptimal(alg.Width, alg.Poly, alg.Init, alg.XorOut, alg.RefIn, alg.RefOut);
-
-				crcbasic.ProcessBytes(StandartCheckData);
-				crcopt.ProcessBytes(StandartCheckData);
-
-				Debug.Assert(crcbasic.CheckSum == crcopt.CheckSum);
-				Debug.Assert(crcbasic.CheckSum == alg.Check);
-			}
+				alg.Test();
 		}
 
 		static void Main(string[] args)
 		{
 			BasicTests();
-			AugmentedTests();
+			AugmentedTests<uint>();
+			AugmentedTests<ulong>();
 
 			Console.WriteLine("All tests passed!!");
 			Console.Read();
