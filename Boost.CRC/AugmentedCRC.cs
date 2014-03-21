@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Numerics;
+
 using Boost.Detail;
 
 namespace Boost.CRC
@@ -32,6 +34,17 @@ namespace Boost.CRC
 
 		private readonly CRCtable<T> crc_table_type;
 
+		/// <summary>
+		/// определение того что тип является BigInteger.
+		/// </summary>
+		/// <remarks>для данного типа нужны отдельные заморочки</remarks>
+		readonly bool bIsBigIntegerType = typeof(T) == typeof(BigInteger);
+
+		/// <summary>
+		/// пороговое значение обработанных байт для BigInteger
+		/// </summary>
+		const int BIByteProcessThresold = 10;
+
 		public AugmentedCRC(int Bits, T TruncPoly)
 		{
 			this.Bits = Bits;
@@ -46,6 +59,9 @@ namespace Boost.CRC
 
 		public T Calculate(byte[] buffer, int offset, int size, T initial_remainder)
 		{
+			/// число обработанных байт в режиме работы с BigInteger
+			int BIByteProcessCount = BIByteProcessThresold;
+
 			dynamic rem = initial_remainder;
 
 			for (int x = 0; x < size; x++)
@@ -55,7 +71,30 @@ namespace Boost.CRC
 				// Use the current top byte as the table index to the next
 				// "partial product."  Shift out that top byte, shifting in
 				// the next augmented-message byte.  Complete the division.
-				byte byte_index = (byte)(rem >> (Bits - Limits.CHAR_BIT));
+
+				dynamic TopByte=rem >> (Bits - Limits.CHAR_BIT);
+
+				if (bIsBigIntegerType)
+				{
+					// это не обязательно для обычных целых типов. И просто кровь из носу требуется выполнять для BigInteger.
+
+					// тут есть шанс словить эксепшен. защита от этого
+					TopByte &= 0xFF;
+
+					// регистр растёт в размере на 8 бит после обработки одного байта
+					// нужен разумный компромисс между размером регистра и частотой сброса старших бит
+
+					BIByteProcessCount--;
+
+					if (BIByteProcessCount <= 0)
+					{
+						rem &= masking_type.SigBits;
+
+						BIByteProcessCount = BIByteProcessThresold;
+					}
+				}
+
+				byte byte_index = (byte)TopByte;
 				rem <<= Limits.CHAR_BIT;
 				rem |= p;
 				rem ^= crc_table_type.Table[byte_index];

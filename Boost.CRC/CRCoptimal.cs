@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Numerics;
+
 using Boost.Detail;
 
 namespace Boost.CRC
@@ -80,6 +82,23 @@ namespace Boost.CRC
 		private readonly CRCtable<T> crc_table_type;
 
 		/// <summary>
+		/// определение того что тип является BigInteger.
+		/// </summary>
+		/// <remarks>для данного типа нужны отдельные заморочки</remarks>
+		readonly bool bIsBigIntegerType = typeof(T) == typeof(BigInteger);
+
+		/// <summary>
+		/// пороговое значение обработанных байт для BigInteger
+		/// </summary>
+		const int BIByteProcessThresold = 10;
+
+		/// <summary>
+		/// число обработанных байт в режиме работы с BigInteger
+		/// </summary>
+		/// <remarks>защита от переполнения</remarks>
+		int BIByteProcessCount = BIByteProcessThresold;
+
+		/// <summary>
 		/// Конструктор ЦРЦ-вычислителя
 		/// </summary>
 		public CRCoptimal(int Bits, T TruncPoly,  T InitialRemainder, T FinalXorValue, bool ReflectInput=false, bool ReflectRemainder=false)
@@ -114,6 +133,25 @@ namespace Boost.CRC
 
 			dynamic dynRemainder = helper_type.shift(Remainder);
 			dynRemainder ^= crc_table_type.Table[byte_index];
+
+			if (bIsBigIntegerType)
+			{
+				// это не обязательно для обычных целых типов. И просто кровь из носу требуется выполнять для BigInteger.
+				// иначе регистр будет расти в размере
+
+				// регистр может расшириться на 8 бит после обработки одного байта
+				// нужен разумный компромисс между размером регистра и частотой сброса старших бит
+
+				BIByteProcessCount--;
+
+				if (BIByteProcessCount<=0)
+				{
+					dynRemainder &= masking_type.SigBits;
+
+					BIByteProcessCount = BIByteProcessThresold;
+				}
+			}
+
 			Remainder = (T)dynRemainder;
 		}
 
@@ -151,6 +189,8 @@ namespace Boost.CRC
 		public void Reset(T NewRemainder)
 		{
 			Remainder = helper_type.reflect(NewRemainder);
+
+			BIByteProcessCount = BIByteProcessThresold;
 		}
 
 		/// <summary>

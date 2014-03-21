@@ -41,22 +41,16 @@ namespace CRCTest
 
 		public void Test()
 		{
-			/*
 			{
 				CRCbasic<BigInteger> crcbasic = new CRCbasic<BigInteger>(Width, Poly, Init, XorOut, RefIn, RefOut);
-
-				CRCoptimal<uint> crcopt8 = new CRCoptimal<uint>(Width, (uint)Poly, (uint)Init, (uint)XorOut, RefIn, RefOut);
 				CRCoptimal<BigInteger> crcopt = new CRCoptimal<BigInteger>(Width, Poly, Init, XorOut, RefIn, RefOut);
 
 				crcbasic.ProcessBytes(StandartCheckData);
-				crcopt8.ProcessBytes(StandartCheckData);
 				crcopt.ProcessBytes(StandartCheckData);
 
-				//Debug.Assert(crcbasic.CheckSum == crcopt.CheckSum);
+				Debug.Assert(crcbasic.CheckSum == crcopt.CheckSum);
 				Debug.Assert(crcbasic.CheckSum == Check);
 			}
-			*/
-
 			
 			if(Width<=64)
 			{

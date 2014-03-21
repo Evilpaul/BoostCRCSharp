@@ -81,7 +81,12 @@ namespace Boost.CRC
 						remainder <<= 1;
 				}
 
-				Table_[charRefl.reflect(dividend)] = BitsRefl.reflect((T)remainder);
+				dynamic tmp = BitsRefl.reflect((T)remainder);
+
+				// следующее выражение необязательно. Просто можно обнулить старшие(неиспользуемые) биты в регистре
+				//tmp &= masking_type.SigBits;
+
+				Table_[charRefl.reflect(dividend)] = (T)tmp;
 				++dividend;
 			}
 			while (dividend != 0);
