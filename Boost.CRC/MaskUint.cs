@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+
+using MiscUtil;
 using Boost.CRC;
 
 namespace Boost.Detail
@@ -23,29 +25,34 @@ namespace Boost.Detail
 		/// </summary>
 		public readonly T SigBits;
 
+		/// <summary>
+		/// старший бит в байте
+		/// </summary>
 		public const byte ByteHighBitMask = 1 << (Limits.CHAR_BIT - 1);
+
+		/// <summary>
+		/// значение 1-ы в генерике
+		/// </summary>
+		public static readonly T One = Operator<int, T>.Convert(1);
+
+		/// <summary>
+		/// значение 0xFF в генерике
+		/// </summary>
+		public static readonly T Value0xFF = Operator<int, T>.Convert(0xFF);
 
 		public MaskUint(int Bits)
 		{
-			dynamic val1 = new T();
-
-			val1 += 1;
-
-			val1 <<= (Bits - 1);
-
-			HighBitMask = (T)val1;
-
-			dynamic val2 = new T();
-
-			val2 += 1;
+			HighBitMask = Operator<T>.LeftShift(One, Bits - 1);
 
 			// специальный прикол для защиты от сдвига разрядность регистра/сдвиг - 32/32 64/64
-			val2 <<= (Bits / 2);
-			val2 <<= (Bits - Bits / 2);
+			int PartShift=Bits / 2;
 
-			val2--;
+			SigBits =Operator<T>.Not(Operator<T>.Zero);
 
-			SigBits = (T)val2;
+			SigBits = Operator<T>.LeftShift(SigBits, PartShift);
+			SigBits = Operator<T>.LeftShift(SigBits, Bits - PartShift);
+
+			SigBits = Operator<T>.Not(SigBits);
 		}
 	}
 }

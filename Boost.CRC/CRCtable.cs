@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+
+using MiscUtil;
 using Boost.Detail;
 
 namespace Boost.CRC
@@ -62,31 +64,34 @@ namespace Boost.CRC
 
 			do
 			{
-				dynamic remainder = new T();
+				T remainder = new T();
 
 				// go through all the dividend's bits
 				for (byte mask = byte_hi_bit; mask > 0; mask >>= 1)
 				{
 					// check if divisor fits
 					if ((dividend & mask) != 0)
-						remainder ^= fast_hi_bit;
+						remainder = Operator<T>.Xor(remainder, fast_hi_bit);
 
 					// do polynominal division
-					if ((remainder & fast_hi_bit) != 0)
+
+					bool bNotEqual=Operator<T>.NotEqual(Operator<T>.And(remainder, fast_hi_bit), Operator<T>.Zero);
+
+					if (bNotEqual)
 					{
-						remainder <<= 1;
-						remainder ^= TruncPoly;
+						remainder = Operator<T>.LeftShift(remainder, 1);
+						remainder = Operator<T>.Xor(remainder, TruncPoly);
 					}
 					else
-						remainder <<= 1;
+						remainder = Operator<T>.LeftShift(remainder, 1);
 				}
 
-				dynamic tmp = BitsRefl.reflect((T)remainder);
+				T tmp = BitsRefl.reflect(remainder);
 
 				// следующее выражение необязательно. Просто можно обнулить старшие(неиспользуемые) биты в регистре
-				//tmp &= masking_type.SigBits;
+				//tmp = Operator<T>.And(tmp, masking_type.SigBits);
 
-				Table_[charRefl.reflect(dividend)] = (T)tmp;
+				Table_[charRefl.reflect(dividend)] = tmp;
 				++dividend;
 			}
 			while (dividend != 0);

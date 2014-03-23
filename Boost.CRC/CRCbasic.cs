@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Boost.Detail;
+using MiscUtil;
 
 namespace Boost.CRC
 {
@@ -78,11 +79,7 @@ namespace Boost.CRC
 		{
 			get
 			{
-				dynamic retval = Remainder;
-
-				retval&=masking_type.SigBits;
-
-				return retval;
+				return Operator<T>.And(Remainder, masking_type.SigBits);
 			}
 		}
 
@@ -111,24 +108,20 @@ namespace Boost.CRC
 		public void ProcessBit(bool bit)
 		{
 			// compare the new bit with the remainder's highest
-			dynamic TmpRemainder = Remainder;
-
 			if (bit)
-				TmpRemainder ^= masking_type.HighBitMask;
-			else
-				TmpRemainder ^= new T();
+				Remainder = Operator<T>.Xor(Remainder, masking_type.HighBitMask);
 
 			// a full polynominal division step is done when the highest bit is one
-			bool DoPolyDiv = (TmpRemainder & masking_type.HighBitMask) != 0;
+			bool DoPolyDiv = Operator<T>.NotEqual(
+				 Operator<T>.And(Remainder, masking_type.HighBitMask), Operator<T>.Zero
+				 );
 
 			// shift out the highest bit
-			TmpRemainder <<= 1;
+			Remainder = Operator<T>.LeftShift(Remainder, 1);
 
 			// carry out the division, if needed
 			if (DoPolyDiv)
-				TmpRemainder ^= TruncPoly;
-
-			Remainder = (T)TmpRemainder;
+				Remainder = Operator<T>.Xor(Remainder, TruncPoly);
 		}
 
 		/// <summary>
@@ -215,16 +208,11 @@ namespace Boost.CRC
 		{
 			get
 			{
-				dynamic RetVal;
+				T RetVal = ReflectRemainder ? Reflector<T>.reflect(Remainder, Bits) : Remainder;
 
-				if (ReflectRemainder)
-					RetVal = Reflector<T>.reflect(Remainder, Bits);
-				else
-					RetVal = Remainder;
-
-				RetVal ^= FinalXorValue;
-
-				return (T)(RetVal & masking_type.SigBits);
+				return Operator<T>.And(
+					Operator<T>.Xor(RetVal, FinalXorValue),
+					masking_type.SigBits);
 			}
 		}
 	}

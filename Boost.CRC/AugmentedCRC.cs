@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Numerics;
 
+using MiscUtil;
 using Boost.Detail;
 
 namespace Boost.CRC
@@ -62,7 +63,7 @@ namespace Boost.CRC
 			/// число обработанных байт в режиме работы с BigInteger
 			int BIByteProcessCount = BIByteProcessThresold;
 
-			dynamic rem = initial_remainder;
+			T rem = initial_remainder;
 
 			for (int x = 0; x < size; x++)
 			{
@@ -72,14 +73,14 @@ namespace Boost.CRC
 				// "partial product."  Shift out that top byte, shifting in
 				// the next augmented-message byte.  Complete the division.
 
-				dynamic TopByte=rem >> (Bits - Limits.CHAR_BIT);
+				T TopByte = Operator<T>.RightShift(rem, Bits - Limits.CHAR_BIT);
 
 				if (bIsBigIntegerType)
 				{
 					// это не обязательно для обычных целых типов. И просто кровь из носу требуется выполнять для BigInteger.
 
 					// тут есть шанс словить эксепшен. защита от этого
-					TopByte &= 0xFF;
+					TopByte = Operator<T>.And(TopByte, MaskUint<T>.Value0xFF);
 
 					// регистр растёт в размере на 8 бит после обработки одного байта
 					// нужен разумный компромисс между размером регистра и частотой сброса старших бит
@@ -88,19 +89,19 @@ namespace Boost.CRC
 
 					if (BIByteProcessCount <= 0)
 					{
-						rem &= masking_type.SigBits;
+						rem = Operator<T>.And(rem, masking_type.SigBits);
 
 						BIByteProcessCount = BIByteProcessThresold;
 					}
 				}
 
-				byte byte_index = (byte)TopByte;
-				rem <<= Limits.CHAR_BIT;
-				rem |= p;
-				rem ^= crc_table_type.Table[byte_index];
+				byte byte_index = Operator<T, byte>.Convert(TopByte);
+				rem = Operator<T>.LeftShift(rem, Limits.CHAR_BIT);
+				rem = Operator<T>.Or(rem, Operator<byte, T>.Convert(p));
+				rem = Operator<T>.Xor(rem, crc_table_type.Table[byte_index] );
 			}
 
-			return (T)(rem & masking_type.SigBits);
+			return Operator<T>.And((T)rem, masking_type.SigBits);
 		}
     }
 }

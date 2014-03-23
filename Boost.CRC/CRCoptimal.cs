@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Numerics;
 
+using MiscUtil;
 using Boost.Detail;
 
 namespace Boost.CRC
@@ -131,9 +132,8 @@ namespace Boost.CRC
 
 			byte byte_index = helper_type.index(Remainder, p);
 
-			dynamic dynRemainder = helper_type.shift(Remainder);
-			dynRemainder ^= crc_table_type.Table[byte_index];
-
+			Remainder = Operator<T>.Xor(helper_type.shift(Remainder), crc_table_type.Table[byte_index]);
+				
 			if (bIsBigIntegerType)
 			{
 				// это не обязательно для обычных целых типов. И просто кровь из носу требуется выполнять для BigInteger.
@@ -146,13 +146,11 @@ namespace Boost.CRC
 
 				if (BIByteProcessCount<=0)
 				{
-					dynRemainder &= masking_type.SigBits;
+					Remainder = Operator<T>.And(Remainder, masking_type.SigBits);
 
 					BIByteProcessCount = BIByteProcessThresold;
 				}
 			}
-
-			Remainder = (T)dynRemainder;
 		}
 
 		public void ProcessBytes(params byte[] mas)
@@ -201,9 +199,7 @@ namespace Boost.CRC
 			get
 			{
 				// Interim remainder should be _un_-reflected, so we have to undo it.
-				dynamic ret = helper_type.reflect(Remainder);
-
-				return ret & masking_type.SigBits;
+				return Operator<T>.And(helper_type.reflect(Remainder), masking_type.SigBits);
 			}
 		}
 
@@ -214,11 +210,9 @@ namespace Boost.CRC
 		{
 			get
 			{
-				dynamic ret=reflect_out_type.reflect(Remainder);
+				T ret = Operator<T>.Xor(reflect_out_type.reflect(Remainder), FinalXorValue);
 
-				ret^= FinalXorValue;
-
-				return (T)(ret & masking_type.SigBits);
+				return Operator<T>.And(ret, masking_type.SigBits);
 			}
 		}
 	}

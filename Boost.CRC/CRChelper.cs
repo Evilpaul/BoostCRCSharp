@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Numerics;
 
+using MiscUtil;
 using Boost.CRC;
 
 namespace Boost.Detail
@@ -39,42 +40,34 @@ namespace Boost.Detail
 		// Compare a byte to the remainder's highest byte
 		public byte index(T rem, byte x)
 		{
-			dynamic tval = rem;
-
 			if (!DoReflect)
 			{
 				if (Bits > Limits.CHAR_BIT)
-					tval = tval >> (Bits - Limits.CHAR_BIT);
+					rem = Operator<T>.RightShift(rem, Bits - Limits.CHAR_BIT);
 				else
-					tval = tval << (Limits.CHAR_BIT - Bits);
+					rem = Operator<T>.LeftShift(rem, Limits.CHAR_BIT - Bits);
 			}
 
-			tval ^= x;
+			rem = Operator<T>.Xor(rem, Operator<byte, T>.Convert(x) );
 
 			if (bIsBigIntegerType)
 			{
 				// следующая строчка важна для класса BigInteger, но не требуется для встроенных численных типов.
 				// BigInteger может кидать исключение при преобразовании к byte. Мы должны дать гарантию приведения к byte без
 				// швыряния исключения.
-				tval &= 0xFF;		// гарантия того что число не превышает значения байта
+				rem = Operator<T>.And(rem, MaskUint<T>.Value0xFF);		// гарантия того что число не превышает значения байта
 			}
 
-			return (byte)tval;
+			return Operator<T, byte>.Convert(rem);
 		}
 
 		// Shift out the remainder's highest byte
 		public T shift(T rem)
 		{
-			dynamic tmp = rem;
-
 			if (DoReflect)
-			{
-				return (T)(tmp >> Limits.CHAR_BIT);
-			}
+				return Operator<T>.RightShift(rem, Limits.CHAR_BIT);
 			else
-			{
-				return (T)(tmp << Limits.CHAR_BIT);
-			}
+				return Operator<T>.LeftShift(rem, Limits.CHAR_BIT);
 		}
 	}
 }

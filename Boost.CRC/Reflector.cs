@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
+using MiscUtil;
+
 namespace Boost.Detail
 {
 	/// <summary>
@@ -22,30 +24,23 @@ namespace Boost.Detail
 		/// <returns></returns>
 		public static T reflect(T x, int Bits)
 		{
-			dynamic reflection = new T();
+			T reflection = Operator<T>.Zero;
 
-			dynamic one = new T();	// 1
-			one++;
-
-			dynamic SourceX = x;
-
-			for (int i = 0; i < Bits; ++i, SourceX >>= 1)
+			for (int i = 0; i < Bits; ++i, x = Operator <T>.RightShift(x, 1) )
 			{
-				dynamic TestedBit = SourceX & one;
+				T TestedBit = Operator<T>.And(x, MaskUint<T>.One);
 
-				if (TestedBit == one)
+				if (Operator<T>.Equal(TestedBit, MaskUint<T>.One))
 				{
 					int index = Bits - 1 - i;
 
-					dynamic TmpVal = one;
+					T TmpVal = Operator<T>.LeftShift(MaskUint<T>.One, index);
 
-					TmpVal <<= index;
-
-					reflection |= TmpVal;
+					reflection = Operator<T>.Or(reflection, TmpVal);
 				}
 			}
 
-			return (T)reflection;
+			return reflection;
 		}
 
 		public Reflector(int Bits)
